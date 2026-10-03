@@ -1,0 +1,184 @@
+<title>토너먼트 시간표</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: departure-board list — controls on top, one dense row per tournament, sorted from "now" */
+:root{
+  --bg:#f3f5f2; --panel:#ffffff; --fg:#1b2420; --muted:#66716b; --line:#dde3de;
+  --accent:#1f6b52; --accent-soft:#e1efe8;
+  --wpl:#2b5fa8; --wpl-soft:#e4ecf7; --hg:#b0620e; --hg-soft:#f8ecdd;
+  --live:#c2392b; --live-soft:#fbe6e2;
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121815; --panel:#1a221e; --fg:#e4ebe6; --muted:#93a19a; --line:#2b3631;
+  --accent:#5fc49c; --accent-soft:#1f3a2f;
+  --wpl:#7fa8e6; --wpl-soft:#1f2c40; --hg:#e8a256; --hg-soft:#3a2a17;
+  --live:#f07b6c; --live-soft:#3d201c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121815; --panel:#1a221e; --fg:#e4ebe6; --muted:#93a19a; --line:#2b3631;
+  --accent:#5fc49c; --accent-soft:#1f3a2f;
+  --wpl:#7fa8e6; --wpl-soft:#1f2c40; --hg:#e8a256; --hg-soft:#3a2a17;
+  --live:#f07b6c; --live-soft:#3d201c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.45}
+.wrap{max-width:980px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 16px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.clock{font-family:var(--mono);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--accent);line-height:1}
+.clock small{display:block;font-family:var(--sans);font-size:12px;font-weight:500;color:var(--muted);margin-top:4px;text-align:right}
+.controls{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.crow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.lab{font-size:11px;letter-spacing:.06em;color:var(--muted);width:64px;flex-shrink:0;font-weight:500}
+.chip{appearance:none;border:1px solid var(--line);background:transparent;color:var(--fg);font:inherit;font-size:13px;padding:4px 10px;border-radius:999px;cursor:pointer}
+.chip:hover{border-color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.chip:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select,input[type=search]{font:inherit;font-size:13px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+input[type=search]{flex:1;min-width:0;max-width:240px}
+.summary{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--muted);font-size:13px}
+.summary b{color:var(--fg);font-family:var(--mono);font-variant-numeric:tabular-nums}
+.list{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row{display:grid;grid-template-columns:58px 64px minmax(0,1fr) 88px 96px 132px;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row.head{font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:500;padding-block:8px;background:var(--bg)}
+.row.live{background:var(--live-soft)}
+.t{font-family:var(--mono);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums}
+.site{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;justify-self:start}
+.site.WPL{color:var(--wpl);background:var(--wpl-soft)}
+.site.한게임{color:var(--hg);background:var(--hg-soft)}
+.name{min-width:0}
+.name .n{font-weight:500;overflow-wrap:anywhere}
+.name .sub{font-size:12px;color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.num small{display:block;font-family:var(--sans);font-size:11px;color:var(--muted)}
+.st{font-size:12px;text-align:right}
+.st .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-weight:500}
+.st .pill.live{color:var(--live);border:1px solid var(--live)}
+.st .pill.soon{color:var(--accent);background:var(--accent-soft)}
+.st .pill.later{color:var(--muted)}
+.st small{display:block;color:var(--muted);font-size:11px;margin-top:2px;font-family:var(--mono)}
+.empty{padding:28px 14px;text-align:center;color:var(--muted)}
+footer{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:680px){
+  .row{grid-template-columns:52px minmax(0,1fr) auto;grid-template-areas:"t name st" "t num num";row-gap:4px}
+  .row.head{display:none}
+  .row .t{grid-area:t;align-self:start}
+  .row .site{display:none}
+  .row .name{grid-area:name}
+  .row .st{grid-area:st;align-self:start}
+  .row .numwrap{grid-area:num;display:flex;gap:14px;justify-content:flex-start}
+  .row .num{text-align:left}
+  .name .tag{display:inline}
+}
+@media (min-width:681px){.row .numwrap{display:contents}.name .tag{display:none}}
+.tag{font-size:11px;font-weight:700;margin-right:6px}
+.tag.WPL{color:var(--wpl)} .tag.한게임{color:var(--hg)}
+@media (prefers-reduced-motion:no-preference){.row.live .pill.live{animation:pulse 2s ease-in-out infinite}}
+@keyframes pulse{50%{opacity:.55}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>토너먼트 시간표</h1>
+      <div class="summary" id="sum"></div>
+    </div>
+    <div class="clock" id="clock">--:--<small>한국 시간</small></div>
+  </header>
+
+  <section class="controls" aria-label="필터">
+    <div class="crow"><span class="lab">사이트</span><span id="f-site"></span></div>
+    <div class="crow"><span class="lab">바이인(원)</span><span id="f-band"></span></div>
+    <div class="crow"><span class="lab">형식</span><span id="f-fmt"></span></div>
+    <div class="crow"><span class="lab">보기</span>
+      <button class="chip" id="f-open" aria-pressed="false">지금 들어갈 수 있는 것만</button>
+      <select id="f-sort" aria-label="정렬">
+        <option value="now">지금부터 시간순</option>
+        <option value="clock">0시부터 시간순</option>
+        <option value="buyin">바이인 낮은순</option>
+        <option value="gtd">GTD 큰순</option>
+      </select>
+      <input type="search" id="f-q" placeholder="이름 검색 (예: 루키즈)" aria-label="이름 검색">
+    </div>
+  </section>
+
+  <div class="list" id="list" role="table"></div>
+
+  <footer>
+    <div>환율: WPL·피망 1억 코인 = 1만 원, 한게임 50억 코인 = 1만 원.</div>
+    <div>늦은 등록 마감 = 시작 + 블라인드(분) × 레벨 + 지나가는 휴식(매시 55~00분) 5분씩. 한게임만 계산됨. WPL은 시작 시각까지만 표시.</div>
+    <div>한게임 목록은 2026-10-04(일) 기준, HPT 새틀라이트 제외. 평일 운영 여부는 아직 확인 전.</div>
+  </footer>
+</div>
+
+<script>
+const D=[["WPL","비기너스 4억 GTD","비기너스","일반",700000,70,40000,0,null,5,null,"매일"],["WPL","클래식 400억 GTD","클래식","일반",270000000,27000,4000000,0,null,6,null,"매일"],["한게임","데일리 몬스터 스택 1조 GTD","데일리 몬스터 스택","일반",8500000000,17000,2000000,0,95,6,15,"일 확인(미검증)"],["한게임","베테랑즈 터보 500억 GTD","베테랑즈","터보",300000000,600,100000,10,40,3,10,"일 확인(미검증)"],["WPL","워밍업 40억 GTD","워밍업","일반",35000000,3500,400000,15,null,6,null,"매일"],["한게임","루키즈 터보 250억 GTD","루키즈","터보",200000000,400,50000,20,50,3,10,"일 확인(미검증)"],["WPL","클래식 프리즈아웃 100억 GTD","클래식","프리즈아웃",100000000,10000,1000000,30,null,6,null,"매일"],["WPL","워밍업 터보 20억 GTD","워밍업","터보",10000000,1000,200000,30,null,4,null,"매일"],["한게임","엑스퍼츠 터보 2000억 GTD","엑스퍼츠","터보",1800000000,3600,400000,40,75,3,10,"일 확인(미검증)"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,50,85,3,10,"일 확인(미검증)"],["WPL","클래식 300억 GTD","클래식","일반",165000000,16500,3000000,60,null,6,null,"매일"],["WPL","프리롤 3천만 GTD","프리롤","일반",0,0,3000,60,null,2,null,"매일"],["한게임","바운티 헌터 6000억 GTD","바운티 헌터","바운티",8500000000,17000,1200000,60,110,5,10,"일 확인(미검증)"],["한게임","바운티 헌터 터보 500억 GTD","바운티 헌터","터보/바운티",550000000,1100,100000,70,100,3,10,"일 확인(미검증)"],["WPL","클래식 50억 GTD","클래식","일반",45000000,4500,500000,75,null,6,null,"매일"],["한게임","나이트크롤러 터보 135억 GTD","나이트크롤러","터보",100000000,200,27000,80,110,3,10,"일 확인(미검증)"],["WPL","루키스 터보 3억 GTD","루키스","터보",3000000,300,30000,90,null,4,null,"매일"],["WPL","클래식 200억 GTD","클래식","일반",180000000,18000,2000000,90,null,6,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,110,145,3,10,"일 확인(미검증)"],["WPL","클래식 200억 GTD","클래식","일반",110000000,11000,2000000,120,null,6,null,"매일"],["WPL","비기너스 4천만 GTD","비기너스","일반",100000,10,4000,120,null,5,null,"매일"],["WPL","스텝업 터보 10억 GTD","스텝업","터보",7000000,700,100000,135,null,4,null,"매일"],["한게임","나이트크롤러 터보 55억 GTD","나이트크롤러","터보",15000000,30,11000,140,170,3,10,"일 확인(미검증)"],["WPL","워밍업 35억 GTD","워밍업","일반",35000000,3500,350000,150,null,6,null,"매일"],["한게임","바운티 헌터 터보 2500억 GTD","바운티 헌터","터보/바운티",3500000000,7000,500000,160,195,3,10,"일 확인(미검증)"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,170,205,3,10,"일 확인(미검증)"],["WPL","클래식 300억 GTD","클래식","일반",330000000,33000,3000000,180,null,6,null,"매일"],["WPL","프리롤 3천만 GTD","프리롤","일반",0,0,3000,180,null,2,null,"매일"],["한게임","나이트크롤러 터보 3100억 GTD","나이트크롤러","터보",3500000000,7000,620000,180,210,3,10,"일 확인(미검증)"],["한게임","나이트크롤러 터보 530억 GTD","나이트크롤러","터보",350000000,700,106000,190,220,3,10,"일 확인(미검증)"],["WPL","루키스 터보 4억 GTD","루키스","터보",4500000,450,40000,195,null,4,null,"매일"],["한게임","나이트크롤러 터보 270억 GTD","나이트크롤러","터보",200000000,400,54000,200,230,3,10,"일 확인(미검증)"],["WPL","워밍업 35억 GTD","워밍업","일반",35000000,3500,350000,210,null,6,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,230,265,3,10,"일 확인(미검증)"],["WPL","클래식 260억 GTD","클래식","일반",280000000,28000,2600000,240,null,6,null,"매일"],["WPL","비기너스 4천만 GTD","비기너스","일반",100000,10,4000,240,null,5,null,"매일"],["한게임","바운티 헌터 터보 500억 GTD","바운티 헌터","터보/바운티",550000000,1100,100000,250,280,3,10,"일 확인(미검증)"],["WPL","스텝업 터보 7억 GTD","스텝업","터보",6000000,600,70000,255,null,4,null,"매일"],["한게임","나이트크롤러 터보 20억 GTD","나이트크롤러","터보",5000000,10,4000,260,290,3,10,"일 확인(미검증)"],["WPL","클래식 60억 GTD","클래식","일반",77000000,7700,600000,270,null,6,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,290,325,3,10,"일 확인(미검증)"],["WPL","워밍업 20억 GTD","워밍업","일반",30000000,3000,200000,300,null,6,null,"매일"],["WPL","프리롤 3천만 GTD","프리롤","일반",0,0,3000,300,null,2,null,"매일"],["한게임","나이트크롤러 터보 530억 GTD","나이트크롤러","터보",350000000,700,106000,310,340,3,10,"일 확인(미검증)"],["WPL","루키스 터보 3.5억 GTD","루키스","터보",3000000,300,35000,315,null,4,null,"매일"],["한게임","나이트크롤러 터보 135억 GTD","나이트크롤러","터보",100000000,200,27000,320,350,3,10,"일 확인(미검증)"],["WPL","스텝업 바운티 터보 10억 GTD","스텝업","터보/바운티",10000000,1000,100000,330,null,4,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,350,385,3,10,"일 확인(미검증)"],["WPL","워밍업 35억 GTD","워밍업","일반",50000000,5000,350000,360,null,6,null,"매일"],["WPL","비기너스 4천만 GTD","비기너스","일반",100000,10,4000,360,null,5,null,"매일"],["WPL","루키스 터보 5억 GTD","루키스","터보",5000000,500,50000,375,null,4,null,"매일"],["한게임","나이트크롤러 터보 55억 GTD","나이트크롤러","터보",15000000,30,11000,380,410,3,10,"일 확인(미검증)"],["WPL","스텝업 바운티 10억 GTD","스텝업","바운티",10000000,1000,100000,390,null,6,null,"매일"],["한게임","나이트크롤러 터보 1050억 GTD","나이트크롤러","터보",750000000,1500,210000,400,435,3,10,"일 확인(미검증)"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,410,445,3,10,"일 확인(미검증)"],["WPL","클래식 35억 GTD","클래식","일반",50000000,5000,350000,420,null,6,null,"매일"],["WPL","프리롤 3천만 GTD","프리롤","일반",0,0,3000,420,null,2,null,"매일"],["WPL","루키스 2.7억 GTD","루키스","일반",1500000,150,27000,435,null,5,null,"매일"],["한게임","루키즈 터보 125억 GTD","루키즈","터보",100000000,200,25000,440,470,3,10,"일 확인(미검증)"],["WPL","스텝업 터보 12억 GTD","스텝업","터보",12000000,1200,120000,450,null,4,null,"매일"],["한게임","메가 프리롤 25억","메가 프리롤","일반",0,0,5000,470,505,3,10,"일 확인(미검증)"],["WPL","클래식 200억 GTD","클래식","일반",190000000,19000,2000000,480,null,6,null,"매일"],["WPL","비기너스 4천만 GTD","비기너스","일반",100000,10,4000,480,null,5,null,"매일"],["한게임","베테랑즈 터보 500억 GTD","베테랑즈","터보",300000000,600,100000,490,520,3,10,"일 확인(미검증)"],["WPL","루키스 터보 7억 GTD","루키스","터보",5000000,500,70000,495,null,4,null,"매일"],["한게임","루키즈 터보 50억 GTD","루키즈","터보",10000000,20,10000,500,530,3,10,"일 확인(미검증)"],["WPL","클래식 70억 GTD","클래식","일반",77000000,7700,700000,510,null,6,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,530,565,3,10,"일 확인(미검증)"],["WPL","클래식 140억 GTD","클래식","일반",110000000,11000,1400000,540,null,6,null,"매일"],["WPL","프리롤 3천만 GTD","프리롤","일반",0,0,3000,540,null,2,null,"매일"],["한게임","마스터즈 5000억 GTD","마스터즈","일반",5000000000,10000,1000000,540,590,5,10,"일 확인(미검증)"],["한게임","바운티 헌터 터보 500억 GTD","바운티 헌터","터보/바운티",550000000,1100,100000,550,580,3,10,"일 확인(미검증)"],["WPL","루키스 2억 GTD","루키스","일반",1200000,120,20000,555,null,5,null,"매일"],["WPL","스텝업 터보 15억 GTD","스텝업","터보",12000000,1200,150000,570,null,4,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,590,625,3,10,"일 확인(미검증)"],["WPL","클래식 200억 GTD","클래식","일반",165000000,16500,2000000,600,null,6,null,"매일"],["WPL","비기너스 4천만 GTD","비기너스","일반",100000,10,4000,600,null,5,null,"매일"],["한게임","베테랑즈 터보 500억 GTD","베테랑즈","터보",300000000,600,100000,610,640,3,10,"일 확인(미검증)"],["WPL","루키스 터보 5억 GTD","루키스","터보",5000000,500,50000,615,null,4,null,"매일"],["한게임","루키즈 터보 15억 GTD","루키즈","터보",5000000,10,3000,620,650,3,10,"일 확인(미검증)"],["WPL","워밍업 터보 20억 GTD","워밍업","터보",12000000,1200,200000,630,null,4,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,650,685,3,10,"일 확인(미검증)"],["WPL","클래식 170억 GTD","클래식","일반",110000000,11000,1700000,660,null,6,null,"매일"],["WPL","프리롤 3천만 GTD","프리롤","일반",0,0,3000,660,null,2,null,"매일"],["WPL","스텝업 바운티 10억 GTD","스텝업","바운티",10000000,1000,100000,675,null,6,null,"매일"],["한게임","루키즈 터보 50억 GTD","루키즈","터보",10000000,20,10000,680,710,3,10,"일 확인(미검증)"],["WPL","루키스 터보 3억 GTD","루키스","터보",3000000,300,30000,690,null,4,null,"매일"],["WPL","워밍업 35억 GTD","워밍업","일반",35000000,3500,350000,690,null,6,null,"매일"],["한게임","메가 프리롤 25억","메가 프리롤","일반",0,0,5000,710,745,3,10,"일 확인(미검증)"],["WPL","클래식 370억 GTD","클래식","일반",220000000,22000,3700000,720,null,6,null,"매일"],["WPL","비기너스 1억 GTD","비기너스","일반",200000,20,10000,720,null,5,null,"매일"],["한게임","베테랑즈 터보 500억 GTD","베테랑즈","터보",300000000,600,100000,730,760,3,10,"일 확인(미검증)"],["WPL","워밍업 터보 17억 GTD","워밍업","터보",12000000,1200,170000,735,null,4,null,"매일"],["한게임","루키즈 터보 125억 GTD","루키즈","터보",100000000,200,25000,740,770,3,10,"일 확인(미검증)"],["WPL","클래식 80억 GTD","클래식","일반",77000000,7700,800000,750,null,6,null,"매일"],["WPL","루키스 터보 8억 GTD","루키스","터보",5000000,500,80000,750,null,4,null,"매일"],["한게임","엑스퍼츠 터보 1000억 GTD","엑스퍼츠","터보",800000000,1600,200000,760,795,3,10,"일 확인(미검증)"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,770,805,3,10,"일 확인(미검증)"],["WPL","클래식 250억 GTD","클래식","일반",250000000,25000,2500000,780,null,6,null,"매일"],["WPL","프리롤 3천만 GTD","프리롤","일반",0,0,3000,780,null,2,null,"매일"],["한게임","바운티 헌터 6000억 GTD","바운티 헌터","바운티",8500000000,17000,1200000,780,830,5,10,"일 확인(미검증)"],["한게임","바운티 헌터 터보 500억 GTD","바운티 헌터","터보/바운티",550000000,1100,100000,790,820,3,10,"일 확인(미검증)"],["WPL","워밍업 20억 GTD","워밍업","일반",10000000,1000,200000,795,null,6,null,"매일"],["한게임","루키즈 터보 250억 GTD","루키즈","터보",200000000,400,50000,800,830,3,10,"일 확인(미검증)"],["WPL","클래식 80억 GTD","클래식","일반",60000000,6000,800000,810,null,6,null,"매일"],["WPL","스텝업 터보 10억 GTD","스텝업","터보",7000000,700,100000,810,null,4,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,830,865,3,10,"일 확인(미검증)"],["WPL","클래식 370억 GTD","클래식","일반",370000000,37000,3700000,840,null,6,null,"매일"],["WPL","비기너스 4억 GTD","비기너스","일반",700000,70,40000,840,null,5,null,"매일"],["한게임","베테랑즈 터보 500억 GTD","베테랑즈","터보",300000000,600,100000,850,880,3,10,"일 확인(미검증)"],["WPL","클래식 90억 GTD","클래식","일반",80000000,8000,900000,855,null,6,null,"매일"],["WPL","스텝업 터보 7억 GTD","스텝업","터보",6000000,600,70000,855,null,4,null,"매일"],["한게임","루키즈 터보 50억 GTD","루키즈","터보",10000000,20,10000,860,890,3,10,"일 확인(미검증)"],["WPL","클래식 바운티 160억 GTD","클래식","바운티",160000000,16000,1600000,870,null,6,null,"매일"],["WPL","워밍업 터보 24억 GTD","워밍업","터보",12000000,1200,240000,870,null,4,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,890,925,3,10,"일 확인(미검증)"],["WPL","클래식 400억 GTD","클래식","일반",220000000,22000,4000000,900,null,6,null,"매일"],["WPL","프리롤 3천만 GTD","프리롤","일반",0,0,3000,900,null,2,null,"매일"],["한게임","마스터즈 5000억 GTD","마스터즈","일반",5000000000,10000,1000000,900,950,5,10,"일 확인(미검증)"],["WPL","스텝업 바운티 16억 GTD","스텝업","바운티",10000000,1000,160000,915,null,6,null,"매일"],["한게임","루키즈 터보 15억 GTD","루키즈","터보",5000000,10,3000,920,950,3,10,"일 확인(미검증)"],["WPL","클래식 프리즈아웃 60억 GTD","클래식","프리즈아웃",60000000,6000,600000,930,null,6,null,"매일"],["WPL","루키스 터보 5억 GTD","루키스","터보",3000000,300,50000,930,null,4,null,"매일"],["한게임","바운티 헌터 터보 1200억 GTD","바운티 헌터","터보/바운티",1550000000,3100,240000,940,975,3,10,"일 확인(미검증)"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,950,985,3,10,"일 확인(미검증)"],["WPL","클래식 330억 GTD","클래식","일반",330000000,33000,3300000,960,null,6,null,"매일"],["WPL","비기너스 1억 GTD","비기너스","일반",200000,20,10000,960,null,5,null,"매일"],["한게임","베테랑즈 터보 500억 GTD","베테랑즈","터보",300000000,600,100000,970,1000,3,10,"일 확인(미검증)"],["WPL","클래식 90억 GTD","클래식","일반",80000000,8000,900000,975,null,6,null,"매일"],["WPL","스텝업 터보 9억 GTD","스텝업","터보",6000000,600,90000,975,null,4,null,"매일"],["한게임","루키즈 터보 125억 GTD","루키즈","터보",100000000,200,25000,980,1010,3,10,"일 확인(미검증)"],["WPL","클래식 바운티 220억 GTD","클래식","바운티",220000000,22000,2200000,990,null,6,null,"매일"],["WPL","워밍업 터보 24억 GTD","워밍업","터보",12000000,1200,240000,990,null,4,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,1010,1045,3,10,"일 확인(미검증)"],["WPL","클래식 400억 GTD","클래식","일반",220000000,22000,4000000,1020,null,6,null,"매일"],["WPL","프리롤 5천만 GTD","프리롤","일반",0,0,5000,1020,null,2,null,"매일"],["한게임","마스터즈 5000억 GTD","마스터즈","일반",5000000000,10000,1000000,1020,1070,5,10,"일 확인(미검증)"],["한게임","바운티 헌터 터보 500억 GTD","바운티 헌터","터보/바운티",550000000,1100,100000,1030,1060,3,10,"일 확인(미검증)"],["WPL","워밍업 25억 GTD","워밍업","일반",10000000,1000,250000,1035,null,6,null,"매일"],["한게임","루키즈 터보 50억 GTD","루키즈","터보",10000000,20,10000,1040,1070,3,10,"일 확인(미검증)"],["WPL","클래식 100억 GTD","클래식","일반",80000000,8000,1000000,1050,null,6,null,"매일"],["WPL","루키스 3억 GTD","루키스","일반",1200000,120,30000,1050,null,5,null,"매일"],["한게임","맥시멈 프리롤 50억","맥시멈 프리롤","일반",0,0,10000,1070,1105,3,10,"일 확인(미검증)"],["WPL","데일리 스페셜 450억 GTD","데일리 스페셜","일반",330000000,33000,4500000,1080,null,6,null,"매일"],["WPL","비기너스 1억 GTD","비기너스","일반",200000,20,10000,1080,null,5,null,"매일"],["한게임","마스터즈 터보 3000억 GTD","마스터즈","터보",3300000000,6600,600000,1080,1110,3,10,"일 확인(미검증)"],["한게임","베테랑즈 터보 500억 GTD","베테랑즈","터보",300000000,600,100000,1090,1120,3,10,"일 확인(미검증)"],["WPL","스텝업 터보 9억 GTD","스텝업","터보",6000000,600,90000,1095,null,4,null,"매일"],["WPL","클래식 70억 GTD","클래식","일반",35000000,3500,700000,1095,null,6,null,"매일"],["한게임","루키즈 터보 250억 GTD","루키즈","터보",200000000,400,50000,1100,1130,3,10,"일 확인(미검증)"],["WPL","클래식 165억 GTD","클래식","일반",110000000,11000,1650000,1110,null,6,null,"매일"],["WPL","워밍업 터보 24억 GTD","워밍업","터보",12000000,1200,240000,1110,null,4,null,"매일"],["한게임","엑스퍼츠 터보 2000억 GTD","엑스퍼츠","터보",1800000000,3600,400000,1120,1155,3,10,"일 확인(미검증)"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,1130,1165,3,10,"일 확인(미검증)"],["WPL","데일리 스페셜 500억 GTD","데일리 스페셜","일반",330000000,33000,5000000,1140,null,6,null,"매일"],["WPL","프리롤 1억 GTD","프리롤","일반",0,0,10000,1140,null,2,null,"매일"],["한게임","마스터즈 5000억 GTD","마스터즈","일반",5000000000,10000,1000000,1140,1190,5,10,"일 확인(미검증)"],["WPL","클래식 70억 GTD","클래식","일반",60000000,6000,700000,1155,null,6,null,"매일"],["WPL","워밍업 터보 24억 GTD","워밍업","터보",12000000,1200,240000,1155,null,4,null,"매일"],["한게임","루키즈 터보 15억 GTD","루키즈","터보",5000000,10,3000,1160,1190,3,10,"일 확인(미검증)"],["WPL","클래식 165억 GTD","클래식","일반",110000000,11000,1650000,1170,null,6,null,"매일"],["WPL","클래식 50억 GTD","클래식","일반",35000000,3500,500000,1170,null,6,null,"매일"],["WPL","루키스 터보 5억 GTD","루키스","터보",3000000,300,50000,1170,null,4,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,1190,1225,3,10,"일 확인(미검증)"],["WPL","데일리 스페셜 550억 GTD","데일리 스페셜","일반",370000000,37000,5500000,1200,null,6,null,"매일"],["WPL","비기너스 4억 GTD","비기너스","일반",700000,70,40000,1200,null,5,null,"매일"],["한게임","베테랑즈 터보 500억 GTD","베테랑즈","터보",300000000,600,100000,1210,1240,3,10,"일 확인(미검증)"],["WPL","클래식 프리즈아웃 90억 GTD","클래식","프리즈아웃",80000000,8000,900000,1215,null,6,null,"매일"],["WPL","스텝업 터보 14억 GTD","스텝업","터보",7000000,700,140000,1215,null,4,null,"매일"],["한게임","루키즈 터보 50억 GTD","루키즈","터보",10000000,20,10000,1220,1250,3,10,"일 확인(미검증)"],["WPL","클래식 270억 GTD","클래식","일반",180000000,18000,2700000,1230,null,6,null,"매일"],["WPL","클래식 70억 GTD","클래식","일반",45000000,4500,700000,1230,null,6,null,"매일"],["한게임","슈퍼 바운티 헌터 9000억 GTD","슈퍼 바운티 헌터","바운티",12000000000,24000,1800000,1230,1285,5,10,"일 확인(미검증)"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,1250,1285,3,10,"일 확인(미검증)"],["WPL","위켄드 빌리언즈 미니 100억 GTD(주말)","위켄드 빌리언즈","일반",60000000,6000,1000000,1260,null,6,null,"주말"],["WPL","데일리 미니 메인 150억 GTD(평일)","데일리 미니","일반",25000000,2500,1500000,1260,null,6,null,"평일"],["WPL","데일리 메인 1,600억 GTD(평일)","데일리 메인","일반",400000000,40000,16000000,1260,null,6,null,"평일"],["WPL","위켄드 빌리언즈 3,200억 GTD(주말)","위켄드 빌리언즈","일반",800000000,80000,32000000,1260,null,6,null,"주말"],["WPL","프리롤 1억 GTD","프리롤","일반",0,0,10000,1260,null,2,null,"매일"],["한게임","마스터즈 5000억 GTD","마스터즈","일반",5000000000,10000,1000000,1260,1310,5,10,"일 확인(미검증)"],["WPL","클래식 65억 GTD(평일)","클래식","일반",60000000,6000,650000,1275,null,6,null,"평일"],["WPL","클래식 60억 GTD(주말)","클래식","일반",35000000,3500,600000,1275,null,6,null,"주말"],["한게임","루키즈 터보 125억 GTD","루키즈","터보",100000000,200,25000,1280,1310,3,10,"일 확인(미검증)"],["WPL","클래식 200억 GTD(매일)","클래식","일반",110000000,11000,2000000,1290,null,6,null,"매일"],["WPL","스텝업 터보 15억 GTD(매일)","스텝업","터보",6000000,600,150000,1290,null,4,null,"매일"],["한게임","로얄 데일리 메인 3조 GTD","로얄 데일리 메인","일반",15000000000,30000,6000000,1290,1405,7,15,"일 확인(미검증)"],["한게임","바운티 헌터 터보 2500억 GTD","바운티 헌터","터보/바운티",3500000000,7000,500000,1300,1335,3,10,"일 확인(미검증)"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,1310,1345,3,10,"일 확인(미검증)"],["WPL","데일리 스페셜 하이롤러 800억 GTD","데일리 스페셜","하이롤러",550000000,55000,8000000,1320,null,8,null,"매일"],["WPL","비기너스 1억 GTD","비기너스","일반",200000,20,10000,1320,null,5,null,"매일"],["한게임","베테랑즈 터보 500억 GTD","베테랑즈","터보",300000000,600,100000,1330,1360,3,10,"일 확인(미검증)"],["WPL","클래식 200억 GTD","클래식","일반",110000000,11000,2000000,1335,null,6,null,"매일"],["WPL","스텝업 터보 18억 GTD","스텝업","터보",10000000,1000,180000,1335,null,4,null,"매일"],["한게임","루키즈 터보 250억 GTD","루키즈","터보",200000000,400,50000,1340,1370,3,10,"일 확인(미검증)"],["WPL","클래식 90억 GTD","클래식","일반",55000000,5500,900000,1350,null,6,null,"매일"],["WPL","데일리 스페셜 500억 GTD","데일리 스페셜","일반",250000000,25000,5000000,1350,null,6,null,"매일"],["한게임","로얄 데일리 슈퍼 1.5조 GTD","로얄 데일리 슈퍼","일반",12500000000,25000,3000000,1350,10,6,15,"일 확인(미검증)"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,1370,1405,3,10,"일 확인(미검증)"],["WPL","데일리 스페셜 슈퍼 하이롤러 1,200억 GTD","데일리 스페셜","하이롤러",1000000000,100000,12000000,1380,null,8,null,"매일"],["WPL","프리롤 1억 GTD","프리롤","일반",0,0,10000,1380,null,2,null,"매일"],["한게임","자이언트 바운티 헌터 1조 GTD","자이언트 바운티 헌터","바운티",14000000000,28000,2000000,1380,35,6,15,"일 확인(미검증)"],["한게임","바운티 헌터 터보 500억 GTD","바운티 헌터","터보/바운티",550000000,1100,100000,1390,1420,3,10,"일 확인(미검증)"],["WPL","클래식 200억 GTD","클래식","일반",110000000,11000,2000000,1395,null,6,null,"매일"],["WPL","스텝업 터보 18억 GTD","스텝업","터보",10000000,1000,180000,1395,null,4,null,"매일"],["한게임","루키즈 터보 50억 GTD","루키즈","터보",10000000,20,10000,1400,1430,3,10,"일 확인(미검증)"],["WPL","클래식 70억 GTD","클래식","일반",45000000,4500,700000,1410,null,6,null,"매일"],["WPL","데일리 스페셜 500억 GTD","데일리 스페셜","일반",300000000,30000,5000000,1410,null,6,null,"매일"],["한게임","프리롤 5억","프리롤","일반",0,0,1000,1430,25,3,10,"일 확인(미검증)"]];
+// [site,name,kind,fmt,coin,won,gtdWon,start,late,blind,lv,day]
+const BANDS=[["0원",0,0],["~100원",1,100],["100~1천원",101,1000],["1천~5천원",1001,5000],["5천~1만원",5001,10000],["1만~3만원",10001,30000],["3만원 초과",30001,1e12]];
+const SITES=["WPL","한게임"], FMTS=["터보","바운티","일반"];
+const S={site:new Set(),band:new Set(),fmt:new Set(),open:false,sort:"now",q:""};
+try{const s=JSON.parse(localStorage.getItem("lobby-f")||"null");if(s){S.site=new Set(s.site);S.band=new Set(s.band);S.fmt=new Set(s.fmt);S.open=!!s.open;S.sort=s.sort||"now"}}catch(e){}
+function save(){try{localStorage.setItem("lobby-f",JSON.stringify({site:[...S.site],band:[...S.band],fmt:[...S.fmt],open:S.open,sort:S.sort}))}catch(e){}}
+
+const won=n=>n>=10000?(n%10000?(n/10000).toFixed(1).replace(/\.0$/,""):n/10000)+"만원":n.toLocaleString("ko-KR")+"원";
+const coin=n=>{if(!n)return"무료";if(n>=1e12)return(n/1e12)+"조";if(n>=1e8)return(+(n/1e8).toFixed(1))+"억";return(n/1e4)+"만"};
+const hm=m=>String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+const dur=m=>m>=60?Math.floor(m/60)+"시간 "+(m%60?m%60+"분":""):m+"분";
+
+function chips(id,arr,set){
+  const el=document.getElementById(id);el.innerHTML="";
+  arr.forEach(v=>{const b=document.createElement("button");b.className="chip";b.textContent=v;b.setAttribute("aria-pressed",set.has(v));
+    b.onclick=()=>{set.has(v)?set.delete(v):set.add(v);b.setAttribute("aria-pressed",set.has(v));save();render()};el.append(b);el.append(" ")});
+}
+chips("f-site",SITES,S.site);chips("f-band",BANDS.map(b=>b[0]),S.band);chips("f-fmt",FMTS,S.fmt);
+const fo=document.getElementById("f-open");fo.setAttribute("aria-pressed",S.open);fo.onclick=()=>{S.open=!S.open;fo.setAttribute("aria-pressed",S.open);save();render()};
+const fs=document.getElementById("f-sort");fs.value=S.sort;fs.onchange=()=>{S.sort=fs.value;save();render()};
+document.getElementById("f-q").oninput=e=>{S.q=e.target.value.trim();render()};
+
+function kst(){const d=new Date(Date.now()+9*3600e3);return{min:d.getUTCHours()*60+d.getUTCMinutes(),sec:d.getUTCSeconds(),dow:d.getUTCDay()}}
+const isWeekend=d=>d===0||d===6;
+
+function render(){
+  const k=kst(),now=k.min;
+  document.getElementById("clock").firstChild.nodeValue=hm(now);
+  const out=[];let liveN=0;
+  for(const r of D){
+    const [site,name,kind,fmt,cn,w,g,st,late]=r,day=r[11];
+    const until=(st-now+1440)%1440, elapsed=(now-st+1440)%1440;
+    const lateLen=late==null?0:(late-st+1440)%1440;
+    const live=lateLen>0&&elapsed<lateLen;
+    // which calendar day does this run start on (for 평일/주말 only)
+    const dow=live?(st<=now?k.dow:(k.dow+6)%7):(st+0>=now?k.dow:(k.dow+1)%7);
+    if(day==="평일"&&isWeekend(dow))continue;
+    if(day==="주말"&&!isWeekend(dow))continue;
+    if(S.site.size&&!S.site.has(site))continue;
+    if(S.band.size&&!BANDS.some(b=>S.band.has(b[0])&&w>=b[1]&&w<=b[2]))continue;
+    if(S.fmt.size&&![...S.fmt].some(f=>f==="일반"?fmt==="일반":fmt.includes(f)))continue;
+    if(S.q&&!name.includes(S.q)&&!kind.includes(S.q))continue;
+    if(S.open&&!live&&until>0)continue;
+    if(live)liveN++;
+    out.push({r,until,live,left:lateLen-elapsed});
+  }
+  const key={now:o=>o.live?-1e4+o.left:o.until,clock:o=>o.r[7],buyin:o=>o.r[5]*1e4+o.until,gtd:o=>-o.r[6]*1e4+o.until}[S.sort];
+  out.sort((a,b)=>key(a)-key(b));
+  document.getElementById("sum").innerHTML=`<span>표시 <b>${out.length}</b>개</span><span>늦은 등록 중 <b>${liveN}</b>개</span>`;
+  const L=document.getElementById("list");
+  if(!out.length){L.innerHTML='<div class="empty">조건에 맞는 토너먼트가 없어요. 필터를 줄여 보세요.</div>';return}
+  let h='<div class="row head" role="row"><span>시작</span><span>사이트</span><span>토너먼트</span><span class="num">바이인</span><span class="num">GTD</span><span class="st">상태</span></div>';
+  for(const o of out){
+    const [site,name,kind,fmt,cn,w,g,st,late,blind,lv,day]=o.r;
+    const sub=[kind,fmt!=="일반"?fmt:"",blind+"분 블라인드"+(lv?` · ${lv}레벨까지 늦은 등록`:""),day.includes("미검증")?"평일 미확인":day!=="매일"?day:""].filter(Boolean).join(" · ");
+    let stat;
+    if(o.live)stat=`<span class="pill live">늦은 등록 중</span><small>${hm(late)} 마감 · ${dur(o.left)} 남음</small>`;
+    else if(o.until===0)stat=`<span class="pill soon">지금 시작</span>`;
+    else stat=`<span class="pill ${o.until<=60?"soon":"later"}">${dur(o.until)} 후</span>${late!=null?`<small>${hm(late)} 마감</small>`:""}`;
+    h+=`<div class="row${o.live?" live":""}" role="row"><span class="t">${hm(st)}</span><span class="site ${site}">${site}</span>
+      <span class="name"><span class="n"><span class="tag ${site}">${site}</span>${name}</span><span class="sub">${sub}</span></span>
+      <span class="numwrap"><span class="num">${w?won(w):"무료"}<small>${coin(cn)} 코인</small></span><span class="num">${won(g)}<small>GTD</small></span></span>
+      <span class="st">${stat}</span></div>`;
+  }
+  L.innerHTML=h;
+}
+render();setInterval(render,20000);
+</script>
