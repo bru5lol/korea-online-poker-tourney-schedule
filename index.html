@@ -44,8 +44,8 @@ input[type=search]{flex:1;min-width:0;max-width:240px}
 .row.head{font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:500;padding-block:8px;background:var(--bg)}
 .row.live{background:var(--live-soft)}
 .t{font-family:var(--mono);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:4px}
-.star{appearance:none;border:0;background:transparent;color:var(--line);font-size:18px;line-height:1;padding:2px;cursor:pointer;border-radius:4px}
-.star:hover{color:var(--muted)}
+.star{appearance:none;border:0;background:transparent;color:var(--muted);font-size:20px;line-height:1;padding:2px 3px;cursor:pointer;border-radius:4px}
+.star:hover{color:var(--fg);background:var(--bg)}
 .star[aria-pressed="true"]{color:var(--star)}
 .star:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .site{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;justify-self:start}
@@ -196,7 +196,7 @@ function render(){
     if(o.live)stat=`<span class="pill live">늦은 등록 중</span><small>${hm(late)} 마감 · ${dur(o.left)} 남음</small>`;
     else if(o.until===0)stat=`<span class="pill soon">지금 시작</span>`;
     else stat=`<span class="pill ${o.until<=60?"soon":"later"}">${dur(o.until)} 후</span>${late!=null?`<small>${hm(late)} 마감</small>`:""}`;
-    h+=`<div class="row${o.live?" live":""}" role="row"><span class="t"><button class="star" data-k="${encodeURIComponent(keyOf(o.r))}" aria-pressed="${FAV.has(keyOf(o.r))}" aria-label="${name} 즐겨찾기">★</button>${hm(st)}</span><span class="site ${site}">${site}</span>
+    h+=`<div class="row${o.live?" live":""}" role="row"><span class="t"><button class="star" data-k="${encodeURIComponent(keyOf(o.r))}" aria-pressed="${FAV.has(keyOf(o.r))}" aria-label="${name} 즐겨찾기">${FAV.has(keyOf(o.r))?"★":"☆"}</button>${hm(st)}</span><span class="site ${site}">${site}</span>
       <span class="name"><span class="n"><span class="tag ${site}">${site}</span>${name}</span><span class="sub">${sub}</span></span>
       <span class="numwrap"><span class="num">${money(w)}<small>${S.unit==="현금"?(cn?site+" "+coin(cn):"무료"):(w?won(w):"0원")}</small></span><span class="num">${money(g)}<small>GTD${S.unit==="현금"?"":" · "+won(g)}</small></span></span>
       <span class="st">${stat}</span></div>`;
