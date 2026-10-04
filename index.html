@@ -36,6 +36,11 @@ h1{font-size:22px;margin:0;letter-spacing:-.01em;text-wrap:balance}
 .chip:hover{border-color:var(--muted)}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
 .chip:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=number]{width:4em;font:inherit;font-size:13px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-family:var(--mono)}
+.nl{font-size:13px;display:inline-flex;align-items:center;gap:4px}
+.note{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:520px;margin:0 auto;background:var(--fg);color:var(--bg);padding:12px 14px;border-radius:10px;font-size:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:10}
+.toast button{appearance:none;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;cursor:pointer;padding:4px 6px}
 select,input[type=search]{font:inherit;font-size:13px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
 input[type=search]{flex:1;min-width:0;max-width:240px}
 .summary{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--muted);font-size:13px}
@@ -112,9 +117,16 @@ footer{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:
       </select>
       <input type="search" id="f-q" placeholder="이름 검색 (예: 루키즈)" aria-label="이름 검색">
     </div>
+    <div class="crow"><span class="lab">알림</span>
+      <button class="chip" id="a-on" aria-pressed="false">알림 꺼짐</button>
+      <label class="nl" for="a-start">시작 <input type="number" id="a-start" min="0" max="120" value="5"> 분 전</label>
+      <label class="nl" for="a-late">늦은 등록 마감 <input type="number" id="a-late" min="0" max="120" value="5"> 분 전</label>
+      <span class="note" id="a-note">즐겨찾기한 대회만 울려요. 0분은 안 울림.</span>
+    </div>
   </section>
 
   <div class="list" id="list" role="table"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <footer>
     <div>환율: WPL·피망 1억 코인 = 1만 원, 한게임 50억 코인 = 1만 원. 단위를 바꾸면 모든 금액이 그 기준으로 환산돼요.</div>
@@ -213,5 +225,38 @@ function render(){
   }
   L.innerHTML=h;
 }
-render();setInterval(render,20000);
+// ---- 알림 ----
+const A={on:false,start:5,late:5};
+try{const a=JSON.parse(localStorage.getItem("lobby-alarm")||"null");if(a){A.on=!!a.on;A.start=+a.start||0;A.late=+a.late||0}}catch(e){}
+let FIRED={};try{FIRED=JSON.parse(localStorage.getItem("lobby-fired")||"{}")}catch(e){}
+const saveA=()=>{try{localStorage.setItem("lobby-alarm",JSON.stringify(A))}catch(e){}};
+const aOn=document.getElementById("a-on"),aS=document.getElementById("a-start"),aL=document.getElementById("a-late"),aN=document.getElementById("a-note");
+aS.value=A.start;aL.value=A.late;
+function aUI(){aOn.setAttribute("aria-pressed",A.on);aOn.textContent=A.on?"알림 켜짐":"알림 꺼짐";
+  const perm=("Notification" in window)?Notification.permission:"none";
+  aN.textContent=!A.on?"즐겨찾기한 대회만 울려요. 0분은 안 울림.":perm==="granted"?"윈도우 알림 + 소리로 알려요. 이 페이지를 열어 두세요.":"브라우저 알림이 막혀 있어서 페이지 안 알림 + 소리로 알려요. 이 페이지를 열어 두세요."}
+let actx=null;
+function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();[0,.25].forEach(d=>{const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=880;o.connect(g);g.connect(actx.destination);const t0=actx.currentTime+d;g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(.25,t0+.02);g.gain.exponentialRampToValueAtTime(.0001,t0+.2);o.start(t0);o.stop(t0+.22)})}catch(e){}}
+aOn.onclick=async()=>{A.on=!A.on;if(A.on){beep();try{if("Notification" in window&&Notification.permission==="default")await Notification.requestPermission()}catch(e){}}saveA();aUI()};
+[aS,aL].forEach(el=>el.onchange=()=>{A.start=Math.max(0,+aS.value||0);A.late=Math.max(0,+aL.value||0);aS.value=A.start;aL.value=A.late;saveA()});
+const baseTitle=document.title;let flashT=null;
+function flash(msg){clearInterval(flashT);let i=0;flashT=setInterval(()=>{document.title=i++%2?baseTitle:"[알림] "+msg},1000)}
+window.addEventListener("focus",()=>{clearInterval(flashT);document.title=baseTitle});
+const toast=document.getElementById("toast");let toastT=null;
+function showToast(msg){toast.innerHTML="";const s=document.createElement("span");s.textContent=msg;const b=document.createElement("button");b.textContent="닫기";b.onclick=()=>{toast.hidden=true};toast.append(s,b);toast.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{toast.hidden=true},60000)}
+function notify(title,body){beep();flash(title);showToast(title+" · "+body);
+  try{if("Notification" in window&&Notification.permission==="granted")new Notification(title,{body,tag:title})}catch(e){}}
+function checkAlarms(){
+  if(!A.on||!FAV.size)return;
+  const d=new Date(Date.now()+9*3600e3),nowS=d.getUTCHours()*3600+d.getUTCMinutes()*60+d.getUTCSeconds(),ts=Date.now();
+  for(const id in FIRED)if(ts-FIRED[id]>3*3600e3)delete FIRED[id];
+  for(const r of D){const k=keyOf(r);if(!FAV.has(k))continue;
+    const [site,name,,,,,,st,late]=r,stS=st*60,untilS=(stS-nowS+86400)%86400,label=`(${site}) ${name}`;
+    if(A.start>0&&untilS>0&&untilS<=A.start*60&&!FIRED[k+"|s"]){FIRED[k+"|s"]=ts;notify(`${hm(st)} 시작 ${Math.ceil(untilS/60)}분 전`,label)}
+    if(A.late>0&&late!=null){const len=((late-st+1440)%1440)*60,el=(nowS-stS+86400)%86400,left=len-el;
+      if(el<len&&left>0&&left<=A.late*60&&!FIRED[k+"|l"]){FIRED[k+"|l"]=ts;notify(`${hm(late)} 늦은 등록 마감 ${Math.ceil(left/60)}분 전`,label)}}}
+  try{localStorage.setItem("lobby-fired",JSON.stringify(FIRED))}catch(e){}
+}
+aUI();
+render();setInterval(render,20000);checkAlarms();setInterval(checkAlarms,10000);
 </script>
