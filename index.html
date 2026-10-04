@@ -37,6 +37,8 @@ h1{font-size:22px;margin:0;letter-spacing:-.01em;text-wrap:balance}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
 .chip:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 input[type=number]{width:4em;font:inherit;font-size:13px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-family:var(--mono)}
+.rng{width:7em;font:inherit;font-size:13px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-family:var(--mono)}
+.rng[aria-invalid="true"]{border-color:var(--live)}
 .nl{font-size:13px;display:inline-flex;align-items:center;gap:4px}
 .note{font-size:12px;color:var(--muted)}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:520px;margin:0 auto;background:var(--fg);color:var(--bg);padding:12px 14px;border-radius:10px;font-size:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:10}
@@ -105,6 +107,10 @@ footer{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:
     <div class="crow"><span class="lab">사이트</span><span id="f-site"></span></div>
     <div class="crow"><span class="lab">단위</span><span id="f-unit"></span></div>
     <div class="crow"><span class="lab">바이인</span><span id="f-band"></span></div>
+    <div class="crow"><span class="lab">직접 입력</span>
+      <input type="text" class="rng" id="b-min" placeholder="최소" aria-label="바이인 최소"> ~ <input type="text" class="rng" id="b-max" placeholder="최대" aria-label="바이인 최대">
+      <span class="note" id="b-unit"></span><button class="chip" id="b-clear">지우기</button>
+    </div>
     <div class="crow"><span class="lab">형식</span><span id="f-fmt"></span></div>
     <div class="crow"><span class="lab">보기</span>
       <button class="chip" id="f-open" aria-pressed="false">지금 들어갈 수 있는 것만</button>
@@ -147,12 +153,12 @@ const D=[["WPL","비기너스 4억 GTD","비기너스","일반",700000,70,40000,
 const BANDS=[["b0",0,0],["b1",1,100],["b2",101,1000],["b3",1001,5000],["b4",5001,10000],["b5",10001,30000],["b6",30001,1e12]];
 const UNITS={"현금":0,"WPL 코인":10000,"한게임 코인":500000};
 const SITES=["WPL","한게임"], FMTS=["터보","바운티","일반"];
-const S={site:new Set(),band:new Set(),fmt:new Set(),open:false,sort:"now",q:"",unit:"현금",favOnly:false};
+const S={site:new Set(),band:new Set(),fmt:new Set(),open:false,sort:"now",q:"",unit:"현금",favOnly:false,bmin:null,bmax:null};
 let FAV=new Set();try{FAV=new Set(JSON.parse(localStorage.getItem("lobby-fav")||"[]"))}catch(e){}
 function saveFav(){try{localStorage.setItem("lobby-fav",JSON.stringify([...FAV]))}catch(e){}}
 const keyOf=r=>r[0]+"|"+r[1]+"|"+r[7];
-try{const s=JSON.parse(localStorage.getItem("lobby-f")||"null");if(s){S.site=new Set(s.site);S.band=new Set(s.band);S.fmt=new Set(s.fmt);S.open=!!s.open;S.sort=s.sort||"now";if(s.unit in UNITS)S.unit=s.unit;S.favOnly=!!s.favOnly;S.band=new Set([...S.band].filter(k=>/^b\d$/.test(k)))}}catch(e){}
-function save(){try{localStorage.setItem("lobby-f",JSON.stringify({site:[...S.site],band:[...S.band],fmt:[...S.fmt],open:S.open,sort:S.sort,unit:S.unit,favOnly:S.favOnly}))}catch(e){}}
+try{const s=JSON.parse(localStorage.getItem("lobby-f")||"null");if(s){S.site=new Set(s.site);S.band=new Set(s.band);S.fmt=new Set(s.fmt);S.open=!!s.open;S.sort=s.sort||"now";if(s.unit in UNITS)S.unit=s.unit;S.favOnly=!!s.favOnly;S.bmin=typeof s.bmin==="number"?s.bmin:null;S.bmax=typeof s.bmax==="number"?s.bmax:null;S.band=new Set([...S.band].filter(k=>/^b\d$/.test(k)))}}catch(e){}
+function save(){try{localStorage.setItem("lobby-f",JSON.stringify({site:[...S.site],band:[...S.band],fmt:[...S.fmt],open:S.open,sort:S.sort,unit:S.unit,favOnly:S.favOnly,bmin:S.bmin,bmax:S.bmax}))}catch(e){}}
 
 const won=n=>n>=10000?(n%10000?(n/10000).toFixed(1).replace(/\.0$/,""):n/10000)+"만원":n.toLocaleString("ko-KR")+"원";
 const coin=n=>{if(!n)return"무료";if(n>=1e12)return(n/1e12)+"조";if(n>=1e8)return(+(n/1e8).toFixed(1))+"억";return(n/1e4)+"만"};
@@ -173,8 +179,21 @@ function bandChips(){const el=document.getElementById("f-band");el.innerHTML="";
     x.onclick=()=>{S.band.has(k)?S.band.delete(k):S.band.add(k);x.setAttribute("aria-pressed",S.band.has(k));save();render()};el.append(x," ")})}
 function unitChips(){const el=document.getElementById("f-unit");el.innerHTML="";
   Object.keys(UNITS).forEach(u=>{const x=document.createElement("button");x.className="chip";x.textContent=u;x.setAttribute("aria-pressed",S.unit===u);
-    x.onclick=()=>{S.unit=u;save();unitChips();bandChips();render()};el.append(x," ")})}
-unitChips();bandChips();
+    x.onclick=()=>{S.unit=u;save();unitChips();bandChips();rangeUI();render()};el.append(x," ")})}
+// 직접 입력 범위 (내부는 원 단위)
+function parseAmt(s){s=(s||"").replace(/[,\s원]/g,"");if(!s)return null;if(s==="무료")return 0;
+  let total=0,rest=s;const re=/^(\d+(?:\.\d+)?)(조|억|만|천)?/;const mul={조:1e12,억:1e8,만:1e4,천:1e3};
+  while(rest){const m=rest.match(re);if(!m)return NaN;total+=parseFloat(m[1])*(m[2]?mul[m[2]]:1);rest=rest.slice(m[0].length)}
+  const r=UNITS[S.unit];return r?total/r:total}
+function fmtAmt(w){if(w==null)return"";const r=UNITS[S.unit];if(!r)return Math.round(w).toLocaleString("ko-KR");const c=w*r;
+  if(c>=1e12)return +(c/1e12).toFixed(2)+"조";if(c>=1e8)return +(c/1e8).toFixed(2)+"억";if(c>=1e4)return +(c/1e4).toFixed(1)+"만";return String(Math.round(c))}
+const bMin=document.getElementById("b-min"),bMax=document.getElementById("b-max");
+function rangeUI(){bMin.value=fmtAmt(S.bmin);bMax.value=fmtAmt(S.bmax);bMin.removeAttribute("aria-invalid");bMax.removeAttribute("aria-invalid");
+  document.getElementById("b-unit").textContent=S.unit==="현금"?"원 (예: 1000, 5천, 2만)":S.unit+" (예: 5000만, 2억)"}
+function onRange(el,key){const v=parseAmt(el.value);if(Number.isNaN(v)){el.setAttribute("aria-invalid","true");return}el.removeAttribute("aria-invalid");S[key]=v;save();render()}
+bMin.onchange=()=>onRange(bMin,"bmin");bMax.onchange=()=>onRange(bMax,"bmax");
+document.getElementById("b-clear").onclick=()=>{S.bmin=S.bmax=null;save();rangeUI();render()};
+unitChips();bandChips();rangeUI();
 const fo=document.getElementById("f-open");fo.setAttribute("aria-pressed",S.open);fo.onclick=()=>{S.open=!S.open;fo.setAttribute("aria-pressed",S.open);save();render()};
 const ff=document.getElementById("f-fav");ff.setAttribute("aria-pressed",S.favOnly);ff.onclick=()=>{S.favOnly=!S.favOnly;ff.setAttribute("aria-pressed",S.favOnly);save();render()};
 document.getElementById("list").addEventListener("click",e=>{const b=e.target.closest(".star");if(!b)return;const k=decodeURIComponent(b.dataset.k);FAV.has(k)?FAV.delete(k):FAV.add(k);saveFav();render()});
@@ -198,7 +217,8 @@ function render(){
     if(day==="평일"&&isWeekend(dow))continue;
     if(day==="주말"&&!isWeekend(dow))continue;
     if(S.site.size&&!S.site.has(site))continue;
-    if(S.band.size&&!BANDS.some(b=>S.band.has(b[0])&&w>=b[1]&&w<=b[2]))continue;
+    const rng=S.bmin!=null||S.bmax!=null;
+    if(S.band.size||rng){const inB=BANDS.some(b=>S.band.has(b[0])&&w>=b[1]&&w<=b[2]);const inR=rng&&w>=(S.bmin??0)-1e-9&&w<=(S.bmax??Infinity)+1e-9;if(!inB&&!inR)continue}
     if(S.fmt.size&&![...S.fmt].some(f=>f==="일반"?fmt==="일반":fmt.includes(f)))continue;
     if(S.q&&!name.includes(S.q)&&!kind.includes(S.q))continue;
     if(S.open&&!live&&until>0)continue;
