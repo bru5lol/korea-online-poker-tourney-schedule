@@ -202,13 +202,12 @@ function render(){
   let h='<div class="row head" role="row"><span>시작</span><span>사이트</span><span>토너먼트</span><span class="num">바이인</span><span class="num">GTD</span><span class="st">상태</span></div>';
   for(const o of out){
     const [site,name,kind,fmt,cn,w,g,st,late,blind,lv,day]=o.r;
-    const sub=[kind,fmt!=="일반"?fmt:"",blind+"분 블라인드"+(lv?` · ${lv}레벨까지 늦은 등록`:late!=null?` · 늦은 등록 ${(late-st+1440)%1440}분`:""),day.includes("미검증")?"평일 미확인":day!=="매일"?day:""].filter(Boolean).join(" · ");
     let stat;
     if(o.live)stat=`<span class="pill live">늦은 등록 중</span><small>${hm(late)} 마감 · ${dur(o.left)} 남음</small>`;
     else if(o.until===0)stat=`<span class="pill soon">지금 시작</span>`;
     else stat=`<span class="pill ${o.until<=60?"soon":"later"}">${dur(o.until)} 후</span>${late!=null?`<small>${hm(late)} 마감</small>`:""}`;
     h+=`<div class="row${o.live?" live":""}" role="row"><span class="t"><button class="star" data-k="${encodeURIComponent(keyOf(o.r))}" aria-pressed="${FAV.has(keyOf(o.r))}" aria-label="${name} 즐겨찾기">${FAV.has(keyOf(o.r))?"★":"☆"}</button>${hm(st)}</span><span class="site ${site}">${site}</span>
-      <span class="name"><span class="n"><span class="tag ${site}">${site}</span>${name}</span><span class="sub">${sub}</span></span>
+      <span class="name"><span class="n"><span class="tag ${site}">${site}</span>${name}</span></span>
       <span class="numwrap"><span class="num">${money(w)}<small>${S.unit==="현금"?(cn?site+" "+coin(cn):"무료"):(w?won(w):"0원")}</small></span><span class="num">${money(g)}<small>GTD${S.unit==="현금"?"":" · "+won(g)}</small></span></span>
       <span class="st">${stat}</span></div>`;
   }
